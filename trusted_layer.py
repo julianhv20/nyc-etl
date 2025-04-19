@@ -8,23 +8,23 @@ def process_trusted_layer(spark, raw_data_path, output_path, lookup_csv_path):
         df = spark.read.parquet(raw_data_path)
         logger.info(f"Records read from Raw Layer: {df.count()}")
 
-        # Validaciones
+        # Validations
         df = df.filter(col("tpep_pickup_datetime") < col("tpep_dropoff_datetime"))
         df = df.filter((col("trip_distance") > 0) & (col("fare_amount") > 0))
         df = df.filter((col("trip_distance") < 1000) & (col("fare_amount") < 5000))  # Outlier thresholds
 
-        # Manejo de valores nulos
+        # Null value handling
         critical_columns = ["tpep_pickup_datetime", "tpep_dropoff_datetime", "trip_distance", "fare_amount", "PULocationID", "DOLocationID"]
         initial_count = df.count()
         df = df.na.drop(subset=critical_columns)
         dropped_count = initial_count - df.count()
         logger.info(f"Rows dropped due to nulls in critical columns: {dropped_count}")
 
-        # Estandarización
+        # Estandarization
         df = df.withColumnRenamed("tpep_pickup_datetime", "pickup_datetime")
         df = df.withColumnRenamed("tpep_dropoff_datetime", "dropoff_datetime")
 
-        # Enriquecimiento
+        # Enrichment with Lookup Data
         lookup_df = spark.read.csv(lookup_csv_path, header=True, inferSchema=True)
         df = df.join(lookup_df.withColumnRenamed("LocationID", "PULocationID")
                           .withColumnRenamed("Zone", "PUZone")
